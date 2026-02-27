@@ -3,18 +3,26 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 )
 
 type Sever struct {
 	Ip   string
 	Port int
+	// 在线用户列表
+	OnlineMap map[string]*User
+	maplock   sync.RWMutex
+	// 消息广播的channel
+	Message chan string
 }
 
 // NewServer 创建一个新的服务器实例
 func NewServer(ip string, port int) *Sever {
 	return &Sever{
-		Ip:   ip,
-		Port: port,
+		Ip:        ip,
+		Port:      port,
+		OnlineMap: make(map[string]*User),
+		Message:   make(chan string),
 	}
 }
 
@@ -29,6 +37,9 @@ func (s *Sever) Start() {
 	// close
 	defer listener.Close()
 
+	// 启动监听Message的goroutine
+	go s.ListenMessage()
+
 	for {
 		// accept
 		conn, err := listener.Accept()
@@ -41,7 +52,37 @@ func (s *Sever) Start() {
 	}
 }
 
+func (s *Sever) ListenMessage() {
+	for {
+		msg := <-s.Message
+		// 将消息发送给在线的用户
+		s.maplock.Lock()
+		for _, user := range s.OnlineMap {
+			user.C <- msg
+		}
+		s.maplock.Unlock()
+	}
+}
+
 // Handler 处理连接
 func (s *Sever) Handler(conn net.Conn) {
-	fmt.Println("Connection established from", conn.RemoteAddr().String())
+	// 创建用户
+	user := NewUser(conn)
+
+	// 用户上线 加入在线列表
+	s.maplock.Lock()
+	s.OnlineMap[user.Name] = user
+	s.maplock.Unlock()
+
+	// 广播用户上线消息
+	s.Broadcast(user, "Online")
+
+	// 阻塞当前handler
+	select {}
+}
+
+// Broadcast 广播消息
+func (s *Sever) Broadcast(user *User, msg string) {
+	sendmsg := "[" + user.Addr + "]" + user.Name + ":" + msg
+	s.Message <- sendmsg
 }
