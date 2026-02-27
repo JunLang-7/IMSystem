@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -76,6 +77,26 @@ func (s *Sever) Handler(conn net.Conn) {
 
 	// 广播用户上线消息
 	s.Broadcast(user, "Online")
+
+	// 接收客户端发送的消息
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			if n == 0 {
+				s.Broadcast(user, "Offline")
+				return
+			}
+			if err != nil && err != io.EOF {
+				fmt.Println("Conn Read Err: ", err)
+				return
+			}
+
+			// 提取用户的消息（去除换行符）
+			msg := string(buf[:n-1])
+			s.Broadcast(user, msg)
+		}
+	}()
 
 	// 阻塞当前handler
 	select {}
