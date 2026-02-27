@@ -7,19 +7,17 @@ import (
 	"sync"
 )
 
-type Sever struct {
-	Ip   string
-	Port int
-	// 在线用户列表
-	OnlineMap map[string]*User
+type Server struct {
+	Ip        string
+	Port      int
+	OnlineMap map[string]*User // 在线用户列表
 	maplock   sync.RWMutex
-	// 消息广播的channel
-	Message chan string
+	Message   chan string // 消息广播的channel
 }
 
 // NewServer 创建一个新的服务器实例
-func NewServer(ip string, port int) *Sever {
-	return &Sever{
+func NewServer(ip string, port int) *Server {
+	return &Server{
 		Ip:        ip,
 		Port:      port,
 		OnlineMap: make(map[string]*User),
@@ -28,7 +26,7 @@ func NewServer(ip string, port int) *Sever {
 }
 
 // Start 启动服务器
-func (s *Sever) Start() {
+func (s *Server) Start() {
 	// socket listen
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.Ip, s.Port))
 	if err != nil {
@@ -53,7 +51,7 @@ func (s *Sever) Start() {
 	}
 }
 
-func (s *Sever) ListenMessage() {
+func (s *Server) ListenMessage() {
 	for {
 		msg := <-s.Message
 		// 将消息发送给在线的用户
@@ -66,17 +64,12 @@ func (s *Sever) ListenMessage() {
 }
 
 // Handler 处理连接
-func (s *Sever) Handler(conn net.Conn) {
+func (s *Server) Handler(conn net.Conn) {
 	// 创建用户
-	user := NewUser(conn)
+	user := NewUser(conn, s)
 
-	// 用户上线 加入在线列表
-	s.maplock.Lock()
-	s.OnlineMap[user.Name] = user
-	s.maplock.Unlock()
-
-	// 广播用户上线消息
-	s.Broadcast(user, "Online")
+	// 用户上线
+	user.Online()
 
 	// 接收客户端发送的消息
 	go func() {
@@ -84,7 +77,7 @@ func (s *Sever) Handler(conn net.Conn) {
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				s.Broadcast(user, "Offline")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -94,7 +87,8 @@ func (s *Sever) Handler(conn net.Conn) {
 
 			// 提取用户的消息（去除换行符）
 			msg := string(buf[:n-1])
-			s.Broadcast(user, msg)
+
+			user.DoMessage(msg)
 		}
 	}()
 
@@ -103,7 +97,7 @@ func (s *Sever) Handler(conn net.Conn) {
 }
 
 // Broadcast 广播消息
-func (s *Sever) Broadcast(user *User, msg string) {
+func (s *Server) Broadcast(user *User, msg string) {
 	sendmsg := "[" + user.Addr + "]" + user.Name + ":" + msg
 	s.Message <- sendmsg
 }
