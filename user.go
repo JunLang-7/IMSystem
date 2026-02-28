@@ -58,5 +58,21 @@ func (u *User) Offline() {
 
 // DoMessage 用户处理消息
 func (u *User) DoMessage(msg string) {
-	u.server.Broadcast(u, msg)
+	if msg == "who" {
+		// 查询当前在线用户都有哪些
+		u.server.maplock.Lock()
+		for _, user := range u.server.OnlineMap {
+			onlineMsg := "[" + user.Addr + "]" + user.Name + ": " + "Online...\n"
+			u.SendMessage(onlineMsg)
+		}
+		u.server.maplock.Unlock()
+	} else {
+		// 广播用户消息
+		u.server.Broadcast(u, msg)
+	}
+}
+
+// SendMessage 发送消息给当前用户
+func (u *User) SendMessage(msg string) {
+	u.conn.Write([]byte(msg))
 }
