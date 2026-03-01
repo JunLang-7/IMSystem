@@ -83,6 +83,33 @@ func (u *User) DoMessage(msg string) {
 			u.Name = newName
 			u.SendMessage("Rename " + u.Name + " success!\n")
 		}
+	} else if len(msg) > 4 && msg[:3] == "to|" {
+		// to|targetName|message
+		// 获取对方用户名
+		parts := strings.Split(msg, "|")
+		if len(parts) < 3 {
+			u.SendMessage("Invalid 'to' command format. Usage: to|targetName|message\n")
+			return
+		}
+		targetName := parts[1]
+
+		// 获取目标用户实例
+		u.server.maplock.Lock()
+		targetUser, exists := u.server.OnlineMap[targetName]
+		u.server.maplock.Unlock()
+
+		if !exists {
+			u.SendMessage("User " + targetName + " is not online.\n")
+			return
+		}
+
+		// 发送消息给目标用户
+		message := strings.Join(parts[2:], "|")
+		if message == "" {
+			u.SendMessage("Message cannot be empty.\n")
+			return
+		}
+		targetUser.SendMessage("[" + u.Name + "] " + message + "\n")
 	} else {
 		// 广播用户消息
 		u.server.Broadcast(u, msg)
