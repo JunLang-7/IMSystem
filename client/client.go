@@ -61,7 +61,7 @@ func (c *Client) Run() {
 			c.PublicChat()
 		case 2:
 			// private chat
-			fmt.Println(">>>Private chat mode, please enter the username of the person you want to chat with:")
+			c.PrivateChat()
 		case 3:
 			// update username
 			c.UpdateName()
@@ -95,6 +95,50 @@ func (c *Client) PublicChat() {
 		chatMsg = ""
 		fmt.Println(">>>please enter your message(enter \"exit\" to exit):")
 		fmt.Scanln(&chatMsg)
+	}
+}
+
+// SelectUsers 查询在线用户列表
+func (c *Client) SelectUsers() {
+	sendMsg := "who\n"
+	_, err := c.conn.Write([]byte(sendMsg))
+	if err != nil {
+		fmt.Println("Failed to send who message:", err)
+		return
+	}
+}
+
+// PrivateChat 私聊
+func (c *Client) PrivateChat() {
+	fmt.Println(">>>Private chat mode")
+	// 查询在线用户列表
+	c.SelectUsers()
+
+	// 提示用户选择私聊对象
+	fmt.Println(">>>Please select who you want to chat(enter username, or \"exit\" to exit):")
+	var remoteName string
+	fmt.Scanln(&remoteName)
+
+	for remoteName != "exit" {
+		fmt.Println(">>>Please enter message, enter \"exit\" to exit private chat:")
+		var chatMsg string
+		fmt.Scanln(&chatMsg)
+
+		for chatMsg != "exit" {
+			if len(chatMsg) != 0 {
+				sendMsg := fmt.Sprintf("to|%s|%s\n", remoteName, chatMsg)
+				_, err := c.conn.Write([]byte(sendMsg))
+				if err != nil {
+					fmt.Println("Failed to send private message:", err)
+					break
+				}
+			}
+			chatMsg = ""
+			fmt.Println(">>>Please enter message, enter \"exit\" to exit private chat:")
+			fmt.Scanln(&chatMsg)
+		}
+		fmt.Println(">>>Please select who you want to chat(enter username, or \"exit\" to exit):")
+		fmt.Scanln(&remoteName)
 	}
 }
 
