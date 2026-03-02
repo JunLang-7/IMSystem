@@ -24,6 +24,5 @@ func main() {
 		return
 	}
 	fmt.Println(">>>Connect to server...")
-	for {
-	}
+	client.Run()
 }
