@@ -58,7 +58,7 @@ func (c *Client) Run() {
 		switch c.flag {
 		case 1:
 			// public chat
-			fmt.Println(">>>Public chat mode, please enter your message:")
+			c.PublicChat()
 		case 2:
 			// private chat
 			fmt.Println(">>>Private chat mode, please enter the username of the person you want to chat with:")
@@ -73,6 +73,29 @@ func (c *Client) Run() {
 func (c *Client) DealResponse() {
 	// 一旦client.conn有数据，就直接copy到stdout标准输出上，永久阻塞在这里
 	io.Copy(os.Stdout, c.conn)
+}
+
+// PublicChat 公聊
+func (c *Client) PublicChat() {
+	var chatMsg string
+	fmt.Println(">>>Public chat mode")
+	fmt.Println(">>>please enter your message(enter \"exit\" to exit):")
+	fmt.Scanln(&chatMsg)
+	for chatMsg != "exit" {
+		// 发送给服务器
+		if len(chatMsg) != 0 {
+			sendMsg := chatMsg + "\n"
+			_, err := c.conn.Write([]byte(sendMsg))
+			if err != nil {
+				fmt.Println("Failed to send message:", err)
+				break
+			}
+		}
+
+		chatMsg = ""
+		fmt.Println(">>>please enter your message(enter \"exit\" to exit):")
+		fmt.Scanln(&chatMsg)
+	}
 }
 
 // UpdateName 更新用户名
