@@ -23,6 +23,11 @@ func main() {
 		fmt.Println("Failed to connect to server.")
 		return
 	}
+	// 启动一个goroutine去处理server的回执消息
+	go client.DealResponse()
+
 	fmt.Println(">>>Connect to server...")
+
+	// 启动客户端的业务
 	client.Run()
 }

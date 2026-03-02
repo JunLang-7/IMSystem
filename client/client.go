@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"os"
 )
 
 type Client struct {
@@ -10,14 +12,14 @@ type Client struct {
 	ServerPort int
 	Name       string
 	conn       net.Conn
-	flag 	   int // 0 for public chat, 1 for private chat, 2 for update username
+	flag       int // 0 for public chat, 1 for private chat, 2 for update username
 }
 
 func NewClient(serverIp string, serverPort int) *Client {
 	client := &Client{
 		ServerIp:   serverIp,
 		ServerPort: serverPort,
-		flag: 999,
+		flag:       999,
 	}
 	conn, err := net.Dial("tcp", net.JoinHostPort(serverIp, fmt.Sprintf("%d", serverPort)))
 	if err != nil {
@@ -62,7 +64,26 @@ func (c *Client) Run() {
 			fmt.Println(">>>Private chat mode, please enter the username of the person you want to chat with:")
 		case 3:
 			// update username
-			fmt.Println(">>>Update username mode, please enter your new username:")
+			c.UpdateName()
 		}
 	}
+}
+
+// DealResponse 处理服务器的回执消息
+func (c *Client) DealResponse() {
+	// 一旦client.conn有数据，就直接copy到stdout标准输出上，永久阻塞在这里
+	io.Copy(os.Stdout, c.conn)
+}
+
+// UpdateName 更新用户名
+func (c *Client) UpdateName() bool {
+	fmt.Println(">>>Update username mode, please enter your new username:")
+	fmt.Scanln(&c.Name)
+	sendMsg := fmt.Sprintf("rename|%s\n", c.Name)
+	_, err := c.conn.Write([]byte(sendMsg))
+	if err != nil {
+		fmt.Println("Failed to send rename message:", err)
+		return false
+	}
+	return true
 }
